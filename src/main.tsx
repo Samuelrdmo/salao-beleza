@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { FormEvent, ReactNode } from 'react';
 import { ArrowUpRight, ArrowLeft, ArrowRight, X, LoaderCircle, Check, ChevronLeft, ChevronRight, Lock, Unlock, MessageCircle, CheckCircle2, AlertCircle, CalendarDays, Clock, MapPin, Flower2, Scissors, Wind, Paintbrush, Droplets, Hand, Eye as EyeIcon, Sparkles, Heart, LogOut, RefreshCw, Search, LockKeyhole, RotateCcw, Eye, EyeOff, Ticket, Plus, Trash2, Pencil, ImagePlus } from 'lucide-react';
@@ -7,7 +7,7 @@ import { rich } from './rich';
 import { adminServices, createCategory, deleteBlock, deleteCategory, deleteService, saveBlock, saveService, availability, book, currentSession, demoCredentials, findBookings, forgetBooking, listBlocks, listBookings, loadConfig, login, logout, rememberBooking, rememberedBooking, resetDemo, setStatus } from './api';
 import type { Catalog, Session } from './api';
 import { optimizeImage } from './images';
-import { DIAS_DA_SEMANA, DIA_INTEIRO, DURACOES, SERVICE_ICONS, agruparPorCategoria, bloqueiosDoDia, colunasSobrepostas, deMinutos, descreverBloqueio, inicioDaSemana, nomeCategoria, paraData, paraMinutos, sameText, somarDias, dataLonga, diaSemanaCurto, diasDisponiveis, diasFechadosTexto, duracaoTexto, iso, linkWhatsApp, mascaraTelefone, mensagemAgendamento, mesCurto, numeroValido, soDigitos, telefoneValido } from './domain';
+import { DIAS_DA_SEMANA, DIA_INTEIRO, diaInteiroBloqueado, DURACOES, SERVICE_ICONS, agruparPorCategoria, bloqueiosDoDia, colunasSobrepostas, deMinutos, descreverBloqueio, inicioDaSemana, nomeCategoria, paraData, paraMinutos, sameText, somarDias, dataLonga, diaSemanaCurto, diasDisponiveis, diasFechadosTexto, duracaoTexto, iso, linkWhatsApp, mascaraTelefone, mensagemAgendamento, mesCurto, numeroValido, soDigitos, telefoneValido } from './domain';
 import type { Block, Booking, Service, SiteConfig, Slot, Status } from './domain';
 import '@client/tokens.css';
 import './index.css';
@@ -290,6 +290,13 @@ type View = 'semana' | 'dia' | 'lista';
 const PX_POR_MIN = 1.1; // 66 px por hora
 const VIEWS: [View, string][] = [['semana', 'Semana'], ['dia', 'Dia'], ['lista', 'Lista']];
 const narrowQuery = '(max-width: 760px)';
+const maiuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+/** true em telas de celular (acompanha a rotação e o redimensionamento). */
+function useNarrow() {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(narrowQuery).matches);
+  useEffect(() => { const m = window.matchMedia(narrowQuery); const on = () => setNarrow(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, []);
+  return narrow;
+}
 const profDe = (a: Booking) => { const v = a.extras?.find(x => /profissional/i.test(x.rotulo))?.valor; return v && !/sem prefer/i.test(v) ? v : ''; };
 const fimDe = (a: Booking) => deMinutos(paraMinutos(a.hora) + (a.duracao || 60));
 function rotuloPeriodo(view: View, dias: string[]) {
@@ -300,6 +307,7 @@ function rotuloPeriodo(view: View, dias: string[]) {
 function contatoCliente(a: Booking, texto: string) { return a.telefone ? linkWhatsApp(`55${a.telefone}`, texto) : ''; }
 
 function AgendaView({ session, onLogout, notify, revision }: { session: Session; onLogout: () => void; notify: Notify; revision: number }) {
+  const narrow = useNarrow();
   const [view, setView] = useState<View>(() => window.matchMedia(narrowQuery).matches ? 'dia' : 'semana');
   const [anchor, setAnchor] = useState(() => iso(new Date()));
   const [site, setSite] = useState<SiteConfig | null>(null);
@@ -307,16 +315,21 @@ function AgendaView({ session, onLogout, notify, revision }: { session: Session;
   const [error, setError] = useState(''); const [tick, setTick] = useState(0);
   const [selected, setSelected] = useState<Booking | null>(null);
   const [blockDraft, setBlockDraft] = useState<BlockDraft | null>(null); const [blockOpen, setBlockOpen] = useState<Block | null>(null);
-  const dias = useMemo(() => view === 'dia' ? [anchor] : view === 'semana' ? Array.from({ length: 7 }, (_, i) => somarDias(inicioDaSemana(anchor), i)) : Array.from({ length: 14 }, (_, i) => somarDias(anchor, i)), [view, anchor]);
+  // No celular a semana em 7 colunas não cabe: vira o dia com a faixa da semana em cima.
+  const modo: View = narrow && view === 'semana' ? 'dia' : view;
+  const semana = useMemo(() => Array.from({ length: 7 }, (_, i) => somarDias(inicioDaSemana(anchor), i)), [anchor]);
+  const dias = useMemo(() => modo === 'dia' ? [anchor] : modo === 'semana' ? semana : Array.from({ length: 14 }, (_, i) => somarDias(anchor, i)), [modo, anchor, semana]);
+  // No dia, busca a semana inteira: trocar de dia é instantâneo e a faixa mostra quantos atendimentos cada dia tem.
+  const de = modo === 'lista' ? dias[0] : semana[0]; const ate = modo === 'lista' ? dias[dias.length - 1] : semana[6];
   const reload = () => setTick(n => n + 1);
   useEffect(() => {
     let live = true; setError(''); setList(null);
-    Promise.all([loadConfig(), listBookings(session.token, dias[0], dias[dias.length - 1]), listBlocks(session.token)])
+    Promise.all([loadConfig(), listBookings(session.token, de, ate), listBlocks(session.token)])
       .then(([c, r, b]) => { if (!live) return; setSite(c); setList(r.agendamentos); setBlocks(b.bloqueios); })
       .catch(err => { if (!live) return; if (/Sessão|login/i.test(err.message)) onLogout(); else setError(err.message); });
     return () => { live = false; };
-  }, [dias, session.token, onLogout, revision, tick]);
-  const passo = view === 'dia' ? 1 : 7;
+  }, [de, ate, session.token, onLogout, revision, tick]);
+  const passo = modo === 'dia' ? 1 : 7;
 
   async function change(b: Booking, status: Status) {
     const before = list; setList(l => l?.map(a => a.id === b.id ? { ...a, status } : a) ?? null);
@@ -327,24 +340,42 @@ function AgendaView({ session, onLogout, notify, revision }: { session: Session;
   async function removeBlock(b: Block) {
     try { await deleteBlock(session.token, b.id); setBlockOpen(null); notify('Bloqueio removido. O horário voltou para o site.'); reload(); } catch (err) { notify((err as Error).message, true); }
   }
-  const ativos = (list ?? []).filter(a => a.status !== 'Cancelado');
+  const visiveis = (list ?? []).filter(a => dias.includes(a.data));
+  const ativos = visiveis.filter(a => a.status !== 'Cancelado');
+  const horas = duracaoTexto(ativos.reduce((t, a) => t + (a.duracao || 60), 0));
+  const novoBloqueio = (data: string) => setBlockDraft({ tipo: 'dia', data, inicio: '12:00', fim: '13:00', diaInteiro: false, motivo: '' });
 
   return <>
-    <div className="agenda-toolbar">
+    {narrow ? <div className="m-agenda-top">
+      <div className="m-agenda-row">
+        <div className="view-switch" role="tablist" aria-label="Visualização">{VIEWS.filter(([v]) => v !== 'semana').map(([v, label]) => <button key={v} role="tab" aria-selected={modo === v} className={modo === v ? 'selected' : ''} onClick={() => setView(v)}>{label}</button>)}</div>
+        <button className="status-btn" onClick={() => setAnchor(iso(new Date()))}>Hoje</button>
+        <button className="status-btn primary" onClick={() => novoBloqueio(anchor)}><Lock size={15} />Bloquear</button>
+      </div>
+      {modo === 'dia'
+        ? site && <WeekStrip semana={semana} anchor={anchor} site={site} list={list ?? []} blocks={blocks} onPick={setAnchor} onShift={n => setAnchor(somarDias(anchor, n))} />
+        : <div className="agenda-nav">
+          <button className="status-btn icon" onClick={() => setAnchor(somarDias(anchor, -passo))} aria-label="Período anterior"><ChevronLeft size={18} /></button>
+          <strong className="agenda-period">A partir de {dataLonga(dias[0])}</strong>
+          <button className="status-btn icon" onClick={() => setAnchor(somarDias(anchor, passo))} aria-label="Próximo período"><ChevronRight size={18} /></button>
+        </div>}
+      {list && modo === 'dia' && <p className="m-summary"><strong>{anchor === iso(new Date()) ? 'Hoje' : maiuscula(dataLonga(anchor))}</strong><span>{ativos.length ? `${ativos.length} ${ativos.length === 1 ? 'atendimento' : 'atendimentos'} · ${horas}` : 'Nenhum atendimento'}</span></p>}
+    </div>
+    : <div className="agenda-toolbar">
       <div className="view-switch" role="tablist" aria-label="Visualização">{VIEWS.map(([v, label]) => <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'selected' : ''} onClick={() => setView(v)}>{label}</button>)}</div>
       <div className="agenda-nav">
         <button className="status-btn icon" onClick={() => setAnchor(somarDias(anchor, -passo))} aria-label="Período anterior"><ChevronLeft size={18} /></button>
         <button className="status-btn" onClick={() => setAnchor(iso(new Date()))}>Hoje</button>
         <button className="status-btn icon" onClick={() => setAnchor(somarDias(anchor, passo))} aria-label="Próximo período"><ChevronRight size={18} /></button>
-        <strong className="agenda-period">{view === 'lista' ? `A partir de ${dataLonga(dias[0])}` : rotuloPeriodo(view, dias)}</strong>
+        <strong className="agenda-period">{modo === 'lista' ? `A partir de ${dataLonga(dias[0])}` : rotuloPeriodo(modo, dias)}</strong>
       </div>
       <button className="button agenda-lock" onClick={() => setBlockDraft({ tipo: 'dia', data: view === 'dia' ? anchor : iso(new Date()), inicio: '12:00', fim: '13:00', diaInteiro: false, motivo: '' })}><Lock size={16} />Bloquear horário</button>
-    </div>
+    </div>}
     {error && <ErrorBox message={error} retry={reload} />}
-    {list && <div className="stats compact"><div><span>Atendimentos no período</span><b>{ativos.length}</b></div><div><span>Horas ocupadas</span><b>{duracaoTexto(ativos.reduce((t, a) => t + (a.duracao || 60), 0) || 0)}</b></div><div><span>Desmarcados</span><b>{(list ?? []).length - ativos.length}</b></div><div><span>Bloqueios ativos</span><b>{blocks.length}</b></div></div>}
+    {list && !narrow && <div className="stats compact"><div><span>Atendimentos no período</span><b>{ativos.length}</b></div><div><span>Horas ocupadas</span><b>{horas}</b></div><div><span>Desmarcados</span><b>{visiveis.length - ativos.length}</b></div><div><span>Bloqueios ativos</span><b>{blocks.length}</b></div></div>}
     {!list || !site ? <Loading text="Montando a agenda…" />
-      : view === 'lista' ? <AgendaList list={list} onOpen={setSelected} />
-        : <Calendar dias={dias} site={site} list={list} blocks={blocks} onOpen={setSelected} onOpenBlock={setBlockOpen}
+      : modo === 'lista' ? <AgendaList list={list} onOpen={setSelected} />
+        : <Calendar ppm={narrow ? 1.5 : PX_POR_MIN} onSwipe={narrow && modo === 'dia' ? n => setAnchor(somarDias(anchor, n)) : undefined} dias={dias} site={site} list={list} blocks={blocks} onOpen={setSelected} onOpenBlock={setBlockOpen}
           onEmpty={(data, inicio) => setBlockDraft({ tipo: 'dia', data, inicio, fim: deMinutos(Math.min(paraMinutos(inicio) + 60, 24 * 60)), diaInteiro: false, motivo: '' })} />}
     {list && <BlockList blocks={blocks} onOpen={setBlockOpen} onNew={() => setBlockDraft({ tipo: 'semanal', diaSemana: 6, data: iso(new Date()), inicio: '14:00', fim: '24:00', diaInteiro: false, motivo: '' })} />}
 
@@ -360,16 +391,40 @@ function AgendaView({ session, onLogout, notify, revision }: { session: Session;
   </>;
 }
 
+/** Faixa da semana (celular): toque num dia para abrir; o número mostra quantos atendimentos ele tem. */
+function WeekStrip({ semana, anchor, site, list, blocks, onPick, onShift }: { semana: string[]; anchor: string; site: SiteConfig; list: Booking[]; blocks: Block[]; onPick: (d: string) => void; onShift: (dias: number) => void }) {
+  const hoje = iso(new Date());
+  const mes = maiuscula(paraData(anchor).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }));
+  return <div className="week-strip">
+    <div className="week-strip-head">
+      <button className="status-btn icon" onClick={() => onShift(-7)} aria-label="Semana anterior"><ChevronLeft size={18} /></button>
+      <strong>{mes}</strong>
+      <button className="status-btn icon" onClick={() => onShift(7)} aria-label="Próxima semana"><ChevronRight size={18} /></button>
+    </div>
+    <div className="week-strip-days">{semana.map(d => {
+      const dt = paraData(d);
+      const fechado = site.horarios.diasFechados.includes(dt.getDay()) || diaInteiroBloqueado(blocks, d, site.horarios);
+      const n = list.filter(a => a.data === d && a.status !== 'Cancelado').length;
+      return <button key={d} className={[d === anchor && 'selected', d === hoje && 'today', fechado && 'closed'].filter(Boolean).join(' ')} aria-pressed={d === anchor} aria-label={`${dataLonga(d)}${fechado ? ', fechado' : `, ${n} atendimentos`}`} onClick={() => onPick(d)}>
+        <small>{diaSemanaCurto(dt)}</small><b>{dt.getDate()}</b><i>{fechado ? '–' : n || ''}</i>
+      </button>;
+    })}</div>
+  </div>;
+}
+
 /** Calendário em colunas por dia, com barras do tamanho de cada atendimento (como o Google Agenda). */
-function Calendar({ dias, site, list, blocks, onOpen, onOpenBlock, onEmpty }: { dias: string[]; site: SiteConfig; list: Booking[]; blocks: Block[]; onOpen: (b: Booking) => void; onOpenBlock: (b: Block) => void; onEmpty: (data: string, inicio: string) => void }) {
+function Calendar({ dias, site, list, blocks, onOpen, onOpenBlock, onEmpty, ppm = PX_POR_MIN, onSwipe }: { ppm?: number; onSwipe?: (dias: number) => void; dias: string[]; site: SiteConfig; list: Booking[]; blocks: Block[]; onOpen: (b: Booking) => void; onOpenBlock: (b: Block) => void; onEmpty: (data: string, inicio: string) => void }) {
   const abre = Math.floor(paraMinutos(site.horarios.abre) / 60) * 60;
   const fecha = Math.ceil(paraMinutos(site.horarios.fecha) / 60) * 60;
-  const altura = (fecha - abre) * PX_POR_MIN;
+  const altura = (fecha - abre) * ppm;
+  const toque = useRef<{ x: number; y: number } | null>(null);
   const horas = Array.from({ length: (fecha - abre) / 60 + 1 }, (_, i) => abre + i * 60);
   const hoje = iso(new Date()); const agora = new Date(); const agoraMin = agora.getHours() * 60 + agora.getMinutes();
-  const y = (min: number) => (Math.min(Math.max(min, abre), fecha) - abre) * PX_POR_MIN;
+  const y = (min: number) => (Math.min(Math.max(min, abre), fecha) - abre) * ppm;
   const cols = `52px repeat(${dias.length}, minmax(${dias.length > 1 ? 110 : 0}px, 1fr))`;
-  return <div className={`calendar ${dias.length > 1 ? 'cal-week' : 'cal-day'}`}>
+  return <div className={`calendar ${dias.length > 1 ? 'cal-week' : 'cal-day'}`}
+    onTouchStart={e => { toque.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+    onTouchEnd={e => { const t = toque.current; toque.current = null; if (!t || !onSwipe) return; const dx = e.changedTouches[0].clientX - t.x; const dy = e.changedTouches[0].clientY - t.y; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx < 0 ? 1 : -1); }}>
     <div className="calendar-scroll">
       <div className="cal-head" style={{ gridTemplateColumns: cols }}>
         <span />
@@ -381,20 +436,20 @@ function Calendar({ dias, site, list, blocks, onOpen, onOpenBlock, onEmpty }: { 
           const fechado = site.horarios.diasFechados.includes(paraData(d).getDay());
           const travas = bloqueiosDoDia(blocks, d);
           const eventos = colunasSobrepostas(list.filter(a => a.data === d).map(a => ({ a, inicio: paraMinutos(a.hora), fim: paraMinutos(a.hora) + (a.duracao || 60) })));
-          return <div key={d} className={`cal-col ${d === hoje ? 'today' : ''}`} style={{ backgroundSize: `100% ${60 * PX_POR_MIN}px` }}
-            onClick={e => { if (e.target !== e.currentTarget || fechado) return; const r = e.currentTarget.getBoundingClientRect(); const min = abre + Math.floor((e.clientY - r.top) / PX_POR_MIN / 30) * 30; onEmpty(d, deMinutos(min)); }}>
+          return <div key={d} className={`cal-col ${d === hoje ? 'today' : ''}`} style={{ backgroundSize: `100% ${60 * ppm}px` }}
+            onClick={e => { if (e.target !== e.currentTarget || fechado) return; const r = e.currentTarget.getBoundingClientRect(); const min = abre + Math.floor((e.clientY - r.top) / ppm / 30) * 30; onEmpty(d, deMinutos(min)); }}>
             {fechado && <div className="cal-closed"><span>Fechado</span></div>}
             {!fechado && travas.map(b => <button key={b.id} className="cal-block" style={{ top: y(paraMinutos(b.inicio)), height: Math.max(y(paraMinutos(b.fim)) - y(paraMinutos(b.inicio)), 14) }} onClick={() => onOpenBlock(b)}><Lock size={12} /><span>{b.motivo || 'Bloqueado'}</span></button>)}
             {eventos.map(({ item: { a, inicio, fim }, coluna, total }) => <button key={a.id} className={`cal-event ${a.status === 'Cancelado' ? 'cancelled' : ''}`} onClick={() => onOpen(a)}
               style={{ top: y(inicio) + 1, height: Math.max(y(fim) - y(inicio) - 2, 22), left: `calc(${(coluna / total) * 100}% + 2px)`, width: `calc(${100 / total}% - 4px)` }}>
-              <b>{a.hora}–{fimDe(a)}</b><span>{a.servico}</span><small>{a.cliente}{profDe(a) ? ` · ${profDe(a)}` : ''}</small>
+              <b>{a.hora}{total === 1 && `–${fimDe(a)}`}</b><span>{a.servico}</span><small>{a.cliente}{profDe(a) ? ` · ${profDe(a)}` : ''}</small>
             </button>)}
             {d === hoje && agoraMin >= abre && agoraMin <= fecha && <span className="cal-now" style={{ top: y(agoraMin) }} />}
           </div>;
         })}
       </div>
     </div>
-    <p className="cal-hint"><Lock size={13} />Toque num espaço vazio da agenda para bloquear aquele horário.</p>
+    <p className="cal-hint"><Lock size={13} />{onSwipe ? 'Deslize para o lado para trocar de dia. Toque num horário vazio para bloquear.' : 'Toque num espaço vazio da agenda para bloquear aquele horário.'}</p>
   </div>;
 }
 
@@ -437,7 +492,7 @@ function BookingDialog({ booking: a, onClose, onChange }: { booking: Booking | n
         </dl>
         {a.status !== 'Cancelado' && <p className="dialog-note"><MessageCircle size={15} />Precisa desmarcar? Combine com o cliente primeiro pelo WhatsApp.</p>}
         <DialogFooter>
-          {a.telefone && <a className="status-btn" href={contatoCliente(a, aviso)} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} />Chamar no WhatsApp</a>}
+          {a.telefone && <a className="status-btn primary" href={contatoCliente(a, aviso)} target="_blank" rel="noopener noreferrer"><MessageCircle size={15} />Chamar no WhatsApp</a>}
           {a.status === 'Cancelado'
             ? <button className="status-btn primary" onClick={() => onChange(a, 'Agendado')}><RotateCcw size={15} />Voltar para a agenda</button>
             : confirming ? <button className="status-btn danger" onClick={() => onChange(a, 'Cancelado')}>Desmarcar mesmo?</button>
@@ -648,7 +703,7 @@ function Panel({ session, route, onLogout, notify }: { session: Session; route: 
   return <main className="wrap page admin" id="main">
     <div className="admin-heading">
       <div><span className="eyebrow">PAINEL DA EQUIPE</span><h1>Olá, <em>{session.nome}.</em></h1></div>
-      <div className="admin-actions"><button className="button button-outline" onClick={() => setRevision(n => n + 1)}><RefreshCw size={16} />Atualizar</button>{!presentation && <button className="button button-outline" onClick={onLogout}><LogOut size={16} />Sair</button>}</div>
+      <div className="admin-actions"><button className="button button-outline" aria-label="Atualizar" onClick={() => setRevision(n => n + 1)}><RefreshCw size={16} /><span className="hide-narrow">Atualizar</span></button>{!presentation && <button className="button button-outline" onClick={onLogout}><LogOut size={16} />Sair</button>}</div>
     </div>
     {presentation && <div className="admin-demo-banner"><span><Flower2 size={18} />Painel de demonstração: veja a agenda, bloqueie horários, cadastre serviços e veja tudo mudar no site.</span><button className="text-button" onClick={() => { resetDemo(); setRevision(n => n + 1); notify('Exemplos restaurados.'); }}><RotateCcw size={15} />Restaurar exemplos</button></div>}
     <nav className="admin-tabs" aria-label="Seções do painel">
