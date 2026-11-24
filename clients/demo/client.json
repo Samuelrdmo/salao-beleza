@@ -1,0 +1,55 @@
+{
+  "slug": "demo",
+  "presentation": true,
+  "brand": {
+    "name": "Íris",
+    "fullName": "Studio Íris",
+    "signature": "CABELO & BELEZA",
+    "logo": "",
+    "logoAlt": "Studio Íris",
+    "logoWidth": 0,
+    "logoHeight": 0
+  },
+  "contact": {
+    "whatsapp": "",
+    "instagram": "",
+    "endereco": "Rua das Magnólias, 88 · Centro"
+  },
+  "sheetsApiUrl": "",
+  "seo": {
+    "title": "Agenda Salão Octype — site com agendamento online para salões de beleza",
+    "description": "Site para salões de beleza com agendamento online: suas clientes marcam corte, escova e unhas sozinhas, só nos horários livres, e você acompanha tudo num calendário no celular. Opção sem mensalidade.",
+    "themeColor": "#FBF5F2",
+    "fontsUrl": "https://fonts.googleapis.com/css2?family=Marcellus&family=Jost:wght@400;500;600&display=swap"
+  },
+  "images": {
+    "hero": "/images/hero.jpg",
+    "login": "/images/login.jpg"
+  },
+  "texts": {
+    "topline": "Cabelo, unhas e sobrancelha · Agende online",
+    "heroEyebrow": "CABELO & BELEZA",
+    "heroTitle": "Seu momento,|*na sua hora.*",
+    "heroText": "Escolha o serviço, a profissional e o horário em um minuto. O resto é com a gente.",
+    "heroCta": "Agendar horário",
+    "heroBottom": "Atendimento com hora marcada, sem espera.",
+    "heroCaptionTitle": "DESTAQUE DA SEMANA",
+    "heroCaptionText": "Morena iluminada com hidratação.",
+    "heroStamp": "AGENDE|ONLINE",
+    "servicesEyebrow": "SERVIÇOS",
+    "servicesTitle": "Cuidado do fio *às unhas.*",
+    "footerTagline": "Cabelo, unhas e sobrancelha com hora marcada.",
+    "footerNote": "Agende em um minuto.|A gente cuida do resto.",
+    "loginTitle": "Agenda|*da equipe.*",
+    "loginImageText": "Cada cliente,|*no seu horário.*"
+  },
+  "pitch": {
+    "productName": "Agenda Salão Octype",
+    "whatsapp": "",
+    "instagram": "https://www.instagram.com/octype/",
+    "price": 1200,
+    "promoPrice": 599,
+    "promoLabel": "Black Friday",
+    "promoNote": "Só esta semana"
+  }
+}

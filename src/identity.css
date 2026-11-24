@@ -1,0 +1,27 @@
+/* Identidade do produto Agenda Salão (vale para todos os clientes deste repositório):
+   títulos em serifa clássica e leve, eyebrows espaçados em caixa alta, botões retos
+   e finos, foto principal em arco. Cores e fontes vêm de tokens.css. */
+h1, h2 { font-weight: 400; letter-spacing: 0; line-height: 1.04; }
+h3 { font-weight: 500; }
+h1 em, h2 em, .pitch em { font-style: normal; color: var(--gold); }
+.hero h1 { font-size: clamp(44px, 11vw, 60px); }
+@media (min-width: 1000px) { .hero h1 { font-size: clamp(58px, 5.6vw, 78px); } }
+.hero h1 em, .admin-heading h1 em { color: var(--gold); }
+.brand-mark { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--gold); color: var(--gold); flex: 0 0 40px; }
+.brand-mark > svg { width: 20px; height: 20px; }
+.brand-name { font-family: var(--serif); font-weight: 400; letter-spacing: .02em; }
+.brand-signature { font-weight: 500; letter-spacing: 2.4px; }
+.eyebrow { font-weight: 500; color: var(--gold); letter-spacing: 2.6px; }
+.button { border-radius: 2px; font-weight: 500; letter-spacing: 1.4px; text-transform: uppercase; font-size: 12px; }
+.status-btn, .view-switch, .view-switch button, .chip, .summary-chip, .segmented, .segmented button { border-radius: 2px !important; }
+.hero-visual, .login-image { border-radius: var(--radius-hero) !important; }
+.hero-stamp { background: var(--ink); color: var(--surface); }
+.empty h3, .login-image > span { font-weight: 400; font-family: var(--serif); }
+.pitch h1, .pitch h2 { font-weight: 400; }
+.pitch h3 { font-weight: 500; }
+.cal-event { border-radius: 3px; }
+.cal-day-head b { font-family: var(--serif); font-weight: 400; }
+body { font-size: 15px; }
+.pitch-header-cta { white-space: nowrap; letter-spacing: .8px; padding-inline: 16px; }
+.pitch-header-cta > svg { display: none; }
+@media (min-width: 760px) { .pitch-header-cta > svg { display: inline; } }

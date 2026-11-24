@@ -1,0 +1,55 @@
+/* Entrada de estilos.
+   - Tailwind entra só com tema e utilitários (sem o reset "preflight"), para os componentes shadcn/ui em src/components/ui.
+   - O CSS do site fica na camada "app", abaixo dos utilitários: assim as classes dos componentes shadcn sempre valem.
+   - As cores do shadcn apontam para os tokens do cliente (clients/<slug>/tokens.css), então cada marca muda sozinha. */
+@layer theme, base, app, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+@import "./styles.css" layer(app);
+@import "./pitch.css" layer(app);
+@import "./agenda.css" layer(app);
+@import "./admin.css" layer(app);
+@import "./identity.css" layer(app);
+
+/* O site não tem modo escuro automático: "dark:" só vale dentro de .dark. */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--ivory);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--surface);
+  --color-secondary: var(--gold-light);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--gold-light);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--gold-light);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--danger);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--gold);
+  --radius-sm: calc(var(--radius-small) - 4px);
+  --radius-md: var(--radius-small);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--sans);
+}
+
+/* Campos do shadcn com rótulo e dica, no padrão do site. */
+@layer app {
+  .field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .field-hint { color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .field .optional { font-weight: 400; color: var(--muted); }
+  .check-field { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-small); background: var(--surface); }
+  .check-field small { font-weight: 400; color: var(--muted); font-size: 12px; }
+}
+
+/* Faixa de fotos da apresentação: a foto preenche o quadro (o componente fixa a altura e cortava no celular).
+   Fica fora das camadas para valer sobre o CSS do LogoLoop. */
+.pitch-marquee .pitch-marquee-item img { width: 100%; height: 100%; object-fit: cover; }

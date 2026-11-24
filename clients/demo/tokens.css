@@ -1,0 +1,24 @@
+/* Studio Íris (salão fictício de apresentação) — tokens do design system.
+   --serif é a fonte de TÍTULOS (Marcellus, clássica e delicada), --sans a de texto (Jost, geométrica).
+   As paletas extras ([data-theme]) só existem na apresentação, para mostrar
+   ao salão como o mesmo site fica com outra identidade. */
+:root, [data-theme="rose"] {
+  --ivory: #FBF5F2; --surface: #FFFFFF; --ink: #3A1D2A; --ink-hover: #4F2839; --gold: #B4627A;
+  --gold-light: #F4DFE4; --muted: #6E5A62; --border: #EEDFDF;
+  --success: #3C8061; --danger: #B23A3A; --danger-bg: #FBECEC;
+  --serif: 'Marcellus', 'Didot', Georgia, serif; --sans: 'Jost', 'Futura', Arial, sans-serif;
+  --radius: 4px; --radius-small: 4px; --radius-hero: 220px 220px 6px 6px;
+}
+[data-theme="nude"] {
+  --ivory: #F7F1EA; --surface: #FFFDFB; --ink: #2E2420; --ink-hover: #45372F; --gold: #A67858;
+  --gold-light: #EEDFD2; --muted: #6B5D54; --border: #E8DCCF;
+}
+[data-theme="lavanda"] {
+  --ivory: #F6F3FB; --surface: #FFFFFF; --ink: #2B2040; --ink-hover: #3C2D58; --gold: #8A6BC4;
+  --gold-light: #E7DFF6; --muted: #625A73; --border: #E3DCEF;
+}
+[data-theme="noite"] {
+  --ivory: #171215; --surface: #21191E; --ink: #F5ECEF; --ink-hover: #FFFFFF; --gold: #E59BB0;
+  --gold-light: #3A2630; --muted: #B3A3AA; --border: #33272D;
+  --success: #6CC79A; --danger: #FF8C8C; --danger-bg: #2E1A1C;
+}
